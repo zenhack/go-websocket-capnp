@@ -38,7 +38,11 @@ func New(url string, subprotocols []string) *Conn {
 	if subprotocols == nil {
 		value = websocketCls.New(url)
 	} else {
-		value = websocketCls.New(url, subprotocols)
+		var jsProtos []any
+		for _, p := range subprotocols {
+			jsProtos = append(jsProtos, p)
+		}
+		value = websocketCls.New(url, jsProtos)
 	}
 	value.Set("binaryType", "arraybuffer")
 	ret := &Conn{
