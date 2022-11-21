@@ -28,9 +28,16 @@ func (e websocketError) Error() string {
 	return "Websocket Error: " + e.event.Get("type").String()
 }
 
-func New(url string) *Conn {
+func New(url string, subprotocols []string) *Conn {
+	websocketCls := js.Global().Get("WebSocket")
+	var value js.Value
+	if subprotocols == nil {
+		value = websocketCls.New(url)
+	} else {
+		value = websocketCls.New(url, subprotocols)
+	}
 	ret := &Conn{
-		value: js.Global().Get("WebSocket").New(url),
+		value: value,
 		msgs:  make(chan *capnp.Message),
 		ready: make(chan struct{}),
 	}
