@@ -16,12 +16,23 @@ var _ transport.Codec = &Conn{}
 type Conn struct {
 	value js.Value
 	msgs  chan *capnp.Message
+	ready chan struct{}
 	err   error
+}
+
+type websocketError struct {
+	event js.Value
+}
+
+func (e websocketError) Error() string {
+	return "Websocket Error: " + e.event.Get("type").String()
 }
 
 func New(url string) *Conn {
 	ret := &Conn{
 		value: js.Global().Get("WebSocket").New(url),
+		msgs:  make(chan *capnp.Message),
+		ready: make(chan struct{}),
 	}
 	ret.value.Call("addEventListener", "message",
 		js.FuncOf(func(this js.Value, args []js.Value) any {
@@ -41,10 +52,22 @@ func New(url string) *Conn {
 			ret.msgs <- msg
 			return nil
 		}))
+	ret.value.Call("addEventListener", "error",
+		js.FuncOf(func(this js.Value, args []js.Value) any {
+			ret.err = websocketError{event: args[0]}
+			close(ret.msgs)
+			return nil
+		}))
+	ret.value.Call("addEventListener", "open",
+		js.FuncOf(func(this js.Value, args []js.Value) any {
+			close(ret.ready)
+			return nil
+		}))
 	return ret
 }
 
 func (c *Conn) Encode(ctx context.Context, msg *capnp.Message) error {
+	<-c.ready
 	if c.err != nil {
 		return c.err
 	}
