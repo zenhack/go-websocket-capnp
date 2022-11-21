@@ -24,6 +24,10 @@ type websocketError struct {
 	event js.Value
 }
 
+func newUint8Array(args ...any) js.Value {
+	return js.Global().Get("Uint8Array").New(args...)
+}
+
 func (e websocketError) Error() string {
 	return "Websocket Error: " + e.event.Get("type").String()
 }
@@ -36,6 +40,7 @@ func New(url string, subprotocols []string) *Conn {
 	} else {
 		value = websocketCls.New(url, subprotocols)
 	}
+	value.Set("binaryType", "arraybuffer")
 	ret := &Conn{
 		value: value,
 		msgs:  make(chan *capnp.Message),
@@ -46,7 +51,7 @@ func New(url string, subprotocols []string) *Conn {
 			if ret.err != nil {
 				return nil
 			}
-			data := args[0].Get("data")
+			data := newUint8Array(args[0].Get("data"))
 			length := data.Get("length").Int()
 			buf := make([]byte, length)
 			js.CopyBytesToGo(buf, data)
@@ -82,7 +87,7 @@ func (c *Conn) Encode(ctx context.Context, msg *capnp.Message) error {
 	if err != nil {
 		return err
 	}
-	array := js.Global().Get("Uint8Array").New(len(buf))
+	array := newUint8Array(len(buf))
 	js.CopyBytesToJS(array, buf)
 	c.value.Call("send", array)
 	return nil
