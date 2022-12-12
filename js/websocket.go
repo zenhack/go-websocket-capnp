@@ -3,9 +3,7 @@
 package js
 
 import (
-	"context"
 	"syscall/js"
-	"time"
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/rpc/transport"
@@ -82,7 +80,7 @@ func New(url string, subprotocols []string) *Conn {
 	return ret
 }
 
-func (c *Conn) Encode(ctx context.Context, msg *capnp.Message) error {
+func (c *Conn) Encode(msg *capnp.Message) error {
 	<-c.ready
 	if c.err != nil {
 		return c.err
@@ -97,13 +95,9 @@ func (c *Conn) Encode(ctx context.Context, msg *capnp.Message) error {
 	return nil
 }
 
-func (c *Conn) Decode(ctx context.Context) (*capnp.Message, error) {
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case msg := <-c.msgs:
-		return msg, c.err
-	}
+func (c *Conn) Decode() (*capnp.Message, error) {
+	msg := <-c.msgs
+	return msg, c.err
 }
 
 func (c *Conn) Close() error {
@@ -111,4 +105,5 @@ func (c *Conn) Close() error {
 	return nil
 }
 
-func (*Conn) SetPartialWriteTimeout(time.Duration) {}
+func (c *Conn) ReleaseMessage(*capnp.Message) {
+}
