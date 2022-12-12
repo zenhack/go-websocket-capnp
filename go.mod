@@ -3,7 +3,7 @@ module zenhack.net/go/websocket-capnp
 go 1.19
 
 require (
-	capnproto.org/go/capnp/v3 v3.0.0-alpha.9
+	capnproto.org/go/capnp/v3 v3.0.0-alpha.12
 	github.com/gorilla/websocket v1.5.0
 )
 
