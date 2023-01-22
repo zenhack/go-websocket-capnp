@@ -77,6 +77,8 @@ func (c websocketCodec) Decode() (*capnp.Message, error) {
 	}
 }
 
+// UpgradeHTTP upgrades an http request to a websocket connection, and returns
+// a transport.Codec that sends capnp messages over it.
 func UpgradeHTTP(
 	up ws.HTTPUpgrader,
 	req *http.Request,
