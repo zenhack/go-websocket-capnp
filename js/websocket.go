@@ -3,9 +3,11 @@
 package js
 
 import (
+	"context"
 	"syscall/js"
 
 	"capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/exp/spsc"
 	"capnproto.org/go/capnp/v3/rpc/transport"
 )
 
@@ -13,7 +15,7 @@ var _ transport.Codec = &Conn{}
 
 type Conn struct {
 	value js.Value
-	msgs  chan *capnp.Message
+	msgs  spsc.Queue[*capnp.Message]
 	ready chan struct{}
 	err   error
 }
@@ -45,7 +47,7 @@ func New(url string, subprotocols []string) *Conn {
 	value.Set("binaryType", "arraybuffer")
 	ret := &Conn{
 		value: value,
-		msgs:  make(chan *capnp.Message),
+		msgs:  spsc.New[*capnp.Message](),
 		ready: make(chan struct{}),
 	}
 	ret.value.Call("addEventListener", "message",
@@ -59,17 +61,17 @@ func New(url string, subprotocols []string) *Conn {
 			js.CopyBytesToGo(buf, data)
 			msg, err := capnp.Unmarshal(buf)
 			if err != nil {
-				close(ret.msgs)
 				ret.err = err
+				ret.msgs.Close()
 				return nil
 			}
-			ret.msgs <- msg
+			ret.msgs.Send(msg)
 			return nil
 		}))
 	ret.value.Call("addEventListener", "error",
 		js.FuncOf(func(this js.Value, args []js.Value) any {
 			ret.err = websocketError{event: args[0]}
-			close(ret.msgs)
+			ret.msgs.Close()
 			return nil
 		}))
 	ret.value.Call("addEventListener", "open",
@@ -96,7 +98,7 @@ func (c *Conn) Encode(msg *capnp.Message) error {
 }
 
 func (c *Conn) Decode() (*capnp.Message, error) {
-	msg := <-c.msgs
+	msg, _ := c.msgs.Recv(context.Background())
 	return msg, c.err
 }
 
